@@ -73,3 +73,33 @@ def predict_sentiment(input: TextInput):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+# ── Alert Webhook (receives alerts from Alertmanager) ──
+from fastapi import Request
+import json
+from datetime import datetime
+
+alert_history = []   # stores last 50 alerts in memory
+
+@app.post("/alerts/webhook")
+async def receive_alert(request: Request):
+    body = await request.json()
+    alerts = body.get("alerts", [])
+    for alert in alerts:
+        entry = {
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "name": alert.get("labels", {}).get("alertname", "Unknown"),
+            "severity": alert.get("labels", {}).get("severity", "unknown"),
+            "status": alert.get("status", "unknown"),
+            "summary": alert.get("annotations", {}).get("summary", ""),
+        }
+        alert_history.append(entry)
+        if len(alert_history) > 50:
+            alert_history.pop(0)
+        print(f"🚨 ALERT [{entry['severity'].upper()}]: {entry['name']} — {entry['summary']}")
+    return {"received": len(alerts)}
+
+@app.get("/alerts/history")
+def get_alert_history():
+    return {"total": len(alert_history), "alerts": alert_history}

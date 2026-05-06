@@ -1,0 +1,43 @@
+groups:
+  - name: mlops_alerts
+    rules:
+
+      # Alert 1: App is completely down
+      - alert: MLOpsAppDown
+        expr: up{job="mlops-app"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "MLOps App is DOWN"
+          description: "The FastAPI prediction server has been unreachable for 30 seconds."
+
+      # Alert 2: No predictions being made (dead service)
+      - alert: NoPredictionsReceived
+        expr: rate(model_requests_total[5m]) == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No predictions in last 5 minutes"
+          description: "Model {{ $labels.model }} has received zero requests for 2 minutes."
+
+      # Alert 3: Latency too high
+      - alert: HighPredictionLatency
+        expr: rate(model_latency_seconds_sum[2m]) / rate(model_latency_seconds_count[2m]) > 0.5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High prediction latency detected"
+          description: "Model {{ $labels.model }} average latency exceeded 500ms."
+
+      # Alert 4: Too many requests (spike/attack)
+      - alert: HighRequestRate
+        expr: rate(model_requests_total[1m]) * 60 > 100
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unusually high request rate"
+          description: "Model {{ $labels.model }} receiving more than 100 requests/minute."
