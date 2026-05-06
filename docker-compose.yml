@@ -1,0 +1,51 @@
+
+services:
+  mlops-app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./mlruns:/app/mlruns
+      - ./models:/app/models
+    networks:
+      - mlops-net
+
+  mlflow:
+    image: python:3.10-slim
+    command: >
+      bash -c "pip install mlflow && mlflow server
+      --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root /mlruns"
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlruns
+    networks:
+      - mlops-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - mlops-net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - mlops-net
+
+networks:
+  mlops-net:
+
+volumes:
+  grafana-storage:
